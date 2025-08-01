@@ -11,7 +11,7 @@ jobs:
       contents: read
 
     steps:
-      # 添加证书更新步骤
+      # 证书更新步骤
       - name: Update CA certificates
         run: |
           sudo apt-get update
@@ -19,24 +19,9 @@ jobs:
           sudo update-ca-certificates --fresh
           echo "SSL_CERT_DIR=/etc/ssl/certs" >> $GITHUB_ENV
 
-      # 添加WireGuard支持步骤
-      - name: Add WireGuard support
-        run: |
-          # 克隆内核源码（因为构建action内部会覆盖）
-          git clone --depth=1 --branch KernelSU-Next https://github.com/AcidTan/android_kernel_xiaomi_sdm845_byd_exp kernel
-          
-          # 添加WireGuard支持
-          cd kernel/msm-4.9
-          git clone --depth=1 https://git.zx2c4.com/wireguard-linux-compat
-          mkdir -p net/wireguard
-          cp -r wireguard-linux-compat/src/* net/wireguard/
-          
-          # 修正Kconfig引用
-          sed -i 's|source "net/wireguard/Kconfig"|# source "net/wireguard/Kconfig"|' net/Kconfig
-          echo "CONFIG_WIREGUARD=n" >> arch/arm64/configs/sdm845-perf_defconfig
-
-      # 原始构建步骤保持不变
+      # 构建内核步骤
       - name: Build Kernel
+        id: build_kernel
         uses: dabao1955/kernel_build_action@main
         with:
           kernel-url: https://github.com/AcidTan/android_kernel_xiaomi_sdm845_byd_exp
@@ -52,3 +37,34 @@ jobs:
           aosp-clang-version: r353983c
           disable-lto: true
           anykernel3: true
+
+      # 添加 WireGuard 支持（在构建步骤之后）
+      - name: Add WireGuard support
+        if: always() # 无论构建是否成功都执行
+        run: |
+          # 等待构建步骤创建目录
+          sleep 10
+          
+          # 进入内核目录
+          cd kernel/msm-4.9
+          
+          # 添加 WireGuard 支持
+          git clone --depth=1 https://git.zx2c4.com/wireguard-linux-compat
+          mkdir -p net/wireguard
+          cp -r wireguard-linux-compat/src/* net/wireguard/
+          
+          # 修正 Kconfig 引用
+          sed -i 's|source "net/wireguard/Kconfig"|# source "net/wireguard/Kconfig"|' net/Kconfig
+          echo "CONFIG_WIREGUARD=n" >> arch/arm64/configs/sdm845-perf_defconfig
+          
+          # 重新运行构建
+          make O=out sdm845-perf_defconfig
+          make -j$(nproc) O=out
+
+      # 上传构建产物
+      - name: Upload artifacts
+        if: success() || steps.build_kernel.outcome == 'success'
+        uses: actions/upload-artifact@v3
+        with:
+          name: kernel-build
+          path: ${{ github.workspace }}/anykernel/*.zip
