@@ -1,3 +1,4 @@
+# A simple action usage
 name: Build Kernel
 on:
   workflow_dispatch:
@@ -11,45 +12,13 @@ jobs:
       contents: read
 
     steps:
-      # 1. 更新 CA 证书
-      - name: Update CA certificates
-        run: |
-          sudo apt-get update
-          sudo apt-get install --reinstall -y ca-certificates
-          sudo update-ca-certificates --fresh
-          echo "SSL_CERT_DIR=/etc/ssl/certs" >> $GITHUB_ENV
-
-      # 2. 克隆内核源码
-      - name: Checkout kernel source
-        uses: actions/checkout@v4
-        with:
-          repository: 'AcidTan/android_kernel_xiaomi_sdm845_byd_exp'
-          path: 'kernel'
-          ref: 'KernelSU-Next'
-
-      # 3. 添加 WireGuard 支持
-      - name: Add WireGuard support
-        run: |
-          # 进入内核目录
-          cd kernel/msm-4.9
-          
-          # 添加 WireGuard 支持
-          git clone --depth=1 https://git.zx2c4.com/wireguard-linux-compat
-          mkdir -p net/wireguard
-          cp -r wireguard-linux-compat/src/* net/wireguard/
-          
-          # 修正 Kconfig 引用
-          sed -i 's|source "net/wireguard/Kconfig"|# source "net/wireguard/Kconfig"|' net/Kconfig
-          echo "CONFIG_WIREGUARD=n" >> arch/arm64/configs/sdm845-perf_defconfig
-
-      # 4. 构建内核（使用您原来的 Action）
       - name: Build Kernel
         uses: dabao1955/kernel_build_action@main
         with:
           kernel-url: https://github.com/AcidTan/android_kernel_xiaomi_sdm845_byd_exp
           kernel-dir: msm-4.9
           kernel-branch: KernelSU-Next
-          config: sdm845-perf_defconfig
+          config: sdm845_defconfig
           arch: arm64
           aosp-gcc: true
           aosp-clang: true
@@ -59,10 +28,3 @@ jobs:
           aosp-clang-version: r353983c
           disable-lto: true
           anykernel3: true
-
-      # 5. 修复弃用的 upload-artifact (覆盖原 Action 中的旧版本)
-      - name: Upload artifacts (fixed)
-        uses: actions/upload-artifact@v4
-        with:
-          name: kernel-build
-          path: ${{ github.workspace }}/anykernel/*.zip
