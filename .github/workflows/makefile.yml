@@ -1,4 +1,3 @@
-# A simple action usage
 name: Build Kernel
 on:
   workflow_dispatch:
@@ -12,6 +11,31 @@ jobs:
       contents: read
 
     steps:
+      # 添加证书更新步骤
+      - name: Update CA certificates
+        run: |
+          sudo apt-get update
+          sudo apt-get install --reinstall -y ca-certificates
+          sudo update-ca-certificates --fresh
+          echo "SSL_CERT_DIR=/etc/ssl/certs" >> $GITHUB_ENV
+
+      # 添加WireGuard支持步骤
+      - name: Add WireGuard support
+        run: |
+          # 克隆内核源码（因为构建action内部会覆盖）
+          git clone --depth=1 --branch KernelSU-Next https://github.com/AcidTan/android_kernel_xiaomi_sdm845_byd_exp kernel
+          
+          # 添加WireGuard支持
+          cd kernel/msm-4.9
+          git clone --depth=1 https://git.zx2c4.com/wireguard-linux-compat
+          mkdir -p net/wireguard
+          cp -r wireguard-linux-compat/src/* net/wireguard/
+          
+          # 修正Kconfig引用
+          sed -i 's|source "net/wireguard/Kconfig"|# source "net/wireguard/Kconfig"|' net/Kconfig
+          echo "CONFIG_WIREGUARD=n" >> arch/arm64/configs/sdm845-perf_defconfig
+
+      # 原始构建步骤保持不变
       - name: Build Kernel
         uses: dabao1955/kernel_build_action@main
         with:
