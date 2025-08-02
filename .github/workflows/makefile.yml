@@ -27,8 +27,7 @@ jobs:
           # 4. 同步系统时间（避免时间错误导致证书"过期"误判）
           sudo timedatectl set-ntp true
           echo "当前系统时间：$(date)"  # 验证时间是否正常
-          
-    steps:
+        
       - name: Build Kernel
         uses: dabao1955/kernel_build_action@main
         with:
