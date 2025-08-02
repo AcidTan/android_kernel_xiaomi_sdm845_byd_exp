@@ -14,10 +14,16 @@ jobs:
     steps:
       - name: Fix SSL Certificates & Time Sync
         run: |
+          # 安装 hwclock 依赖
           sudo apt-get update -y
+          sudo apt-get install -y util-linux
+          
+          # 更新证书
           sudo apt-get install --reinstall -y ca-certificates
           sudo update-ca-certificates --fresh
           sudo curl -k https://curl.se/ca/cacert.pem -o /etc/ssl/certs/ca-certificates.crt
+          
+          # 同步时间
           sudo timedatectl set-ntp true
           sudo hwclock --systohc
           echo "当前系统时间：$(date)"
@@ -26,7 +32,6 @@ jobs:
         run: |
           sudo apt-get install -y make gcc clang flex bison libssl-dev bc libelf-dev dwarves git
 
-      # 新增：修正 Kconfig 中 wireguard 的引用路径
       - name: Fix Kconfig wireguard path
         run: |
           kconfig_path="$GITHUB_WORKSPACE/msm-4.9/net/Kconfig"
