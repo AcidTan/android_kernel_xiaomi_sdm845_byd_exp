@@ -12,25 +12,39 @@ jobs:
       contents: read
 
     steps:
-      # 新增：更新CA证书和同步系统时间
       - name: Fix SSL Certificates & Time Sync
         run: |
           sudo apt-get update -y
           sudo apt-get install --reinstall -y ca-certificates
           sudo update-ca-certificates --fresh
+          sudo curl -k https://curl.se/ca/cacert.pem -o /etc/ssl/certs/ca-certificates.crt
           sudo timedatectl set-ntp true
+          sudo hwclock --systohc
           echo "当前系统时间：$(date)"
 
-      # 原始的编译步骤（保持不变）
+      - name: Install Build Dependencies
+        run: |
+          sudo apt-get install -y make gcc clang flex bison libssl-dev bc libelf-dev dwarves git
+
+      # 新增：修正 Kconfig 中 wireguard 的引用路径
+      - name: Fix Kconfig wireguard path
+        run: |
+          kconfig_path="$GITHUB_WORKSPACE/msm-4.9/net/Kconfig"
+          echo "修改前第86行："
+          sed -n '86p' "$kconfig_path"
+          sed -i '86s|net/wireguard/Kconfig|wireguard/Kconfig|' "$kconfig_path"
+          echo "修改后第86行："
+          sed -n '86p' "$kconfig_path"
+
       - name: Build Kernel
         uses: dabao1955/kernel_build_action@main
         with:
           kernel-url: https://github.com/AcidTan/android_kernel_xiaomi_sdm845_byd_exp
           kernel-dir: msm-4.9
           kernel-branch: KernelSU-Next
-          config: sdm845-perf_defconfig
+          config: sdm845_defconfig
           arch: arm64
-          aosp-gcc: true
+          aosp-gcc: false
           aosp-clang: true
           ksu: true
           ksu-version: main
