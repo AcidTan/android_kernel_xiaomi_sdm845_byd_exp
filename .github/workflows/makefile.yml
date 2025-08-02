@@ -1,16 +1,15 @@
 # A simple action usage
-jobs:
-name: Build Kernel
-on:
-  workflow_dispatch:
+on:  # 触发条件放在顶层（在jobs之前）
+  workflow_dispatch:  # 支持手动触发
 
 jobs:
-  Build-Kernel:
+  Build-Kernel:  # 作业名称（唯一）
+    name: Build Kernel  # 作业显示名称（可选）
     strategy:
       fail-fast: false
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest  # 运行环境
     permissions:
-      contents: read
+      contents: read  # 权限设置
     steps:
       # 新增：更新CA证书和系统时间
       - name: Fix SSL Certificates & Time Sync
@@ -29,7 +28,7 @@ jobs:
           echo "当前系统时间：$(date)"  # 验证时间是否正常
         
       - name: Build Kernel
-        uses: dabao1955/kernel_build_action@main
+        uses: dabao1955/kernel_build_action@main  # 使用自定义action
         with:
           kernel-url: https://github.com/AcidTan/android_kernel_xiaomi_sdm845_byd_exp
           kernel-dir: msm-4.9
